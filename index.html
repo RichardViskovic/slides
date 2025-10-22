@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>My Reveal Decks</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background-color: Canvas;
+        color: CanvasText;
+      }
+
+      body {
+        margin: 0;
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        min-height: 100vh;
+      }
+
+      header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 2.4vw, 2.8rem);
+      }
+
+      #search {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        border: 1px solid rgba(128, 128, 128, 0.4);
+        border-radius: 0.5rem;
+        background-color: inherit;
+        color: inherit;
+      }
+
+      #status {
+        min-height: 1.25rem;
+        color: rgba(128, 128, 128, 0.9);
+      }
+
+      ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 1rem;
+      }
+
+      li {
+        border: 1px solid rgba(128, 128, 128, 0.3);
+        border-radius: 0.75rem;
+        padding: 1rem 1.25rem;
+        transition: transform 120ms ease, box-shadow 120ms ease;
+        background-color: rgba(255, 255, 255, 0.02);
+      }
+
+      li:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.1);
+      }
+
+      a.deck-link {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .deck-path {
+        font-size: 0.9rem;
+        color: rgba(128, 128, 128, 0.9);
+        margin-top: 0.35rem;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>My Reveal Decks</h1>
+      <input id="search" type="search" placeholder="Search decks..." aria-label="Search decks" autocomplete="off">
+      <div id="status" role="status" aria-live="polite"></div>
+    </header>
+    <main>
+      <ul id="deck-list" aria-label="Decks"></ul>
+    </main>
+
+    <template id="deck-item-template">
+      <li>
+        <a class="deck-link"></a>
+        <div class="deck-path"></div>
+      </li>
+    </template>
+
+    <script type="module">
+      const decksRoot = 'mydecks/';
+      const searchInput = document.querySelector('#search');
+      const deckListEl = document.querySelector('#deck-list');
+      const statusEl = document.querySelector('#status');
+      const deckTemplate = document.querySelector('#deck-item-template');
+      let decks = [];
+
+      document.addEventListener('DOMContentLoaded', async () => {
+        try {
+          setStatus('Loading decks…');
+          decks = await loadDecks();
+          if (!decks.length) {
+            setStatus('No decks found in myslides yet.');
+          } else {
+            setStatus(`Loaded ${decks.length} deck${decks.length === 1 ? '' : 's'}.`);
+          }
+          renderDecks(decks);
+        } catch (error) {
+          console.error(error);
+          setStatus('Unable to load deck listing. Make sure directory listings are enabled when hosting this folder.');
+        }
+      });
+
+      searchInput.addEventListener('input', () => {
+        const query = searchInput.value.trim();
+        if (!query) {
+          renderDecks(decks);
+          setStatus(decks.length ? `Showing all ${decks.length} decks.` : 'No decks available.');
+          return;
+        }
+
+        const results = decks
+          .map(deck => ({ deck, score: fuzzyScore(query, deck.title) }))
+          .filter(entry => entry.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .map(entry => entry.deck);
+
+        renderDecks(results);
+        setStatus(results.length ? `Showing ${results.length} match${results.length === 1 ? '' : 'es'}.` : 'No matches.');
+      });
+
+      function setStatus(message) {
+        statusEl.textContent = message;
+      }
+
+      async function loadDecks() {
+        const entries = await listDirectory(decksRoot);
+        const deckDirs = entries.filter(entry => entry.endsWith('/'));
+
+        const deckInfos = await Promise.all(deckDirs.map(async dir => {
+          const deckPath = `${decksRoot}${dir}`;
+          const href = `${deckPath}index.html`;
+
+          const title = await resolveDeckTitle(deckPath, dir);
+          if (!title) {
+            return null;
+          }
+
+          return {
+            title,
+            href,
+            dir: deckPath.replace(/\/?$/, '/')
+          };
+        }));
+
+        return deckInfos.filter(Boolean);
+      }
+
+      async function listDirectory(path) {
+        const response = await fetch(`${path}?${Date.now()}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch directory listing for ${path}`);
+        }
+
+        const markup = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(markup, 'text/html');
+        const anchors = Array.from(doc.querySelectorAll('a'));
+
+        return anchors
+          .map(anchor => anchor.getAttribute('href') || '')
+          .filter(href => href && href !== '../')
+          .map(href => href.split('?')[0])
+          .filter(Boolean);
+      }
+
+      async function resolveDeckTitle(deckPath, dirName) {
+        const markdownTitle = await extractMarkdownTitle(`${deckPath}slides.md`);
+        if (markdownTitle) {
+          return markdownTitle;
+        }
+
+        const htmlTitle = await extractHtmlTitle(`${deckPath}index.html`);
+        if (htmlTitle) {
+          return htmlTitle;
+        }
+
+        return dirName.replace(/\/?$/, '').replace(/[-_]/g, ' ');
+      }
+
+      async function extractMarkdownTitle(url) {
+        try {
+          const response = await fetch(`${url}?${Date.now()}`);
+          if (!response.ok) {
+            return null;
+          }
+          const text = await response.text();
+          const match = text.match(/^\s*#\s+(.+)$/m);
+          return match ? match[1].trim() : null;
+        } catch (error) {
+          return null;
+        }
+      }
+
+      async function extractHtmlTitle(url) {
+        try {
+          const response = await fetch(`${url}?${Date.now()}`);
+          if (!response.ok) {
+            return null;
+          }
+          const markup = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(markup, 'text/html');
+          const title = doc.querySelector('title');
+          return title ? title.textContent.trim() : null;
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function renderDecks(deckList) {
+        deckListEl.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+
+        deckList.forEach(deck => {
+          const node = deckTemplate.content.firstElementChild.cloneNode(true);
+          const link = node.querySelector('.deck-link');
+          const pathLabel = node.querySelector('.deck-path');
+
+          link.textContent = deck.title;
+          link.href = deck.href;
+          pathLabel.textContent = deck.dir;
+
+          fragment.appendChild(node);
+        });
+
+        deckListEl.appendChild(fragment);
+      }
+
+      function fuzzyScore(query, text) {
+        const q = query.toLowerCase();
+        const t = text.toLowerCase();
+        let score = 0;
+        let tIndex = 0;
+
+        for (const char of q) {
+          const foundIndex = t.indexOf(char, tIndex);
+          if (foundIndex === -1) {
+            return 0;
+          }
+          score += 1 + (t.length - foundIndex);
+          tIndex = foundIndex + 1;
+        }
+
+        return score;
+      }
+    </script>
+  </body>
+</html>
