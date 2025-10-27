@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formal Writing Proposal Workshop</title>
+    <link rel="stylesheet" href="../../reveal.js/dist/reveal.css">
+    <link rel="stylesheet" href="../../reveal.js/dist/theme/black.css" id="theme">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section data-markdown="slides.md"
+                 data-separator="^---$"
+                 data-separator-vertical="^--$"
+                 data-separator-notes="^Note:" ></section>
+      </div>
+    </div>
+
+    <script src="../../reveal.js/dist/reveal.js"></script>
+    <script src="../../reveal.js/plugin/markdown/markdown.js"></script>
+    <script src="../../reveal.js/plugin/highlight/highlight.js"></script>
+    <script src="../../reveal.js/plugin/notes/notes.js"></script>
+    <script src="../../reveal.js/plugin/zoom/zoom.js"></script>
+    <script src="../../slidey-plugins/core/registry.js"></script>
+    <script src="../../slidey-plugins/countdown-timer/countdown-timer.js"></script>
+    <script src="../../slidey-plugins/menu/menu.js"></script>
+    <script>
+      const pluginRegistry = [
+        RevealMarkdown,
+        RevealHighlight,
+        RevealNotes,
+        RevealZoom
+      ];
+
+      if (window.RevealCountdownTimer) {
+        pluginRegistry.push(window.RevealCountdownTimer);
+      }
+      if (window.RevealSlideyMenu) {
+        pluginRegistry.push(window.RevealSlideyMenu);
+      }
+
+      Reveal.initialize({
+        hash: true,
+        plugins: pluginRegistry
+      });
+    </script>
+  </body>
+</html>

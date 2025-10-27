@@ -1,0 +1,33 @@
+{
+  "generatedAt": "2025-10-27T08:52:49.541Z",
+  "decks": [
+    {
+      "id": "elderly-energy-initiative",
+      "title": "Formal Writing Proposal Workshop",
+      "href": "slidey-decks/elderly-energy-initiative/index.html",
+      "dir": "slidey-decks/elderly-energy-initiative/",
+      "tags": [
+        "english",
+        "writing",
+        "rhetoric"
+      ],
+      "updatedAt": "2025-10-27T08:51:57.562Z"
+    },
+    {
+      "id": "human-rights",
+      "title": "Welcome",
+      "href": "slidey-decks/human-rights/index.html",
+      "dir": "slidey-decks/human-rights/",
+      "tags": [],
+      "updatedAt": "2025-10-23T05:23:55.948Z"
+    },
+    {
+      "id": "template",
+      "title": "Welcome",
+      "href": "slidey-decks/template/index.html",
+      "dir": "slidey-decks/template/",
+      "tags": [],
+      "updatedAt": "2025-10-22T11:28:29.006Z"
+    }
+  ]
+}
